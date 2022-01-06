@@ -77,7 +77,7 @@ public abstract class VideoStream extends MediaStream {
 	protected SurfaceHolder.Callback mSurfaceHolderCallback = null;
 	protected SurfaceView mSurfaceView = null;
 	protected SharedPreferences mSettings = null;
-	protected int mVideoEncoder, mCameraId = 0;
+	protected int mVideoEncoder, mCameraId = 1;
 	protected int mRequestedOrientation = 0, mOrientation = 0;
 	protected Camera mCamera;
 	protected Thread mCameraThread;
@@ -100,7 +100,7 @@ public abstract class VideoStream extends MediaStream {
 	 * Uses CAMERA_FACING_BACK by default.
 	 */
 	public VideoStream() {
-		this(CameraInfo.CAMERA_FACING_BACK);
+		this(CameraInfo.CAMERA_FACING_FRONT);
 	}
 
 	/**
@@ -528,17 +528,15 @@ public abstract class VideoStream extends MediaStream {
 							}
 							mMediaCodec.queueInputBuffer(bufferIndex, 0, inputBuffers[bufferIndex].position(), now, 0);
 						} else {
-							Log.e(TAG, "No buffer available !");
+							Log.e(TAG, "No buffer available !" + bufferIndex);
 						}
+					mCamera.addCallbackBuffer(data);
 				}
 				catch (NullPointerException exception){
 					Log.e(TAG, exception.getMessage());
 				}
 				catch (IllegalStateException exception){
 					Log.e(TAG, "illegal exception");
-				}
-				finally{
-					mCamera.addCallbackBuffer(data);
 				}
 			}
 		};
@@ -613,7 +611,7 @@ public abstract class VideoStream extends MediaStream {
 				Looper.prepare();
 				mCameraLooper = Looper.myLooper();
 				try {
-					mCamera = Camera.open(mCameraId);
+					mCamera = Camera.open(1);
 				} catch (RuntimeException e) {
 					exception[0] = e;
 				} finally {

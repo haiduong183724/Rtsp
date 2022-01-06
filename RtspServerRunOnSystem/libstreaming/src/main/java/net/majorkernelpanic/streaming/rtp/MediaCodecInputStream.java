@@ -101,10 +101,12 @@ public class MediaCodecInputStream extends InputStream {
 				mMediaCodec.releaseOutputBuffer(mIndex, false);
 				mBuffer = null;
 			}
-			
-		} catch (RuntimeException e) {
+
+		}
+		catch (RuntimeException e) {
 			e.printStackTrace();
 		}
+
 
 		return min;
 	}

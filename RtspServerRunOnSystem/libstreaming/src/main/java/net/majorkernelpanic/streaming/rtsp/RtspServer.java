@@ -20,13 +20,9 @@
 
 package net.majorkernelpanic.streaming.rtsp;
 
-import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.BindException;
@@ -34,6 +30,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.UnknownHostException;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -43,9 +40,12 @@ import java.util.WeakHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import net.majorkernelpanic.streaming.ClientInfo;
+import net.majorkernelpanic.streaming.MediaStream;
 import net.majorkernelpanic.streaming.Session;
 import net.majorkernelpanic.streaming.SessionBuilder;
 import net.majorkernelpanic.streaming.gl.SurfaceView;
+import net.majorkernelpanic.streaming.rtp.RtpSocket;
 
 import android.app.Service;
 import android.content.Intent;
@@ -74,7 +74,7 @@ public class RtspServer extends Service {
 	public static String SERVER_NAME = "MajorKernelPanic RTSP Server";
 
 	/** Port used by default. */
-	public static final int DEFAULT_RTSP_PORT = 8086;
+	public static final int DEFAULT_RTSP_PORT = 5555;
 
 	/** Port already in use. */
 	public final static int ERROR_BIND_FAILED = 0x00;
@@ -87,6 +87,7 @@ public class RtspServer extends Service {
 	
 	/** Streaming stopped. */
 	public final static int MESSAGE_STREAMING_STOPPED = 0X01;
+
 	
 	/** Key used in the SharedPreferences to store whether the RTSP server is enabled or not. */
 	public final static String KEY_ENABLED = "rtsp_enabled";
@@ -104,13 +105,14 @@ public class RtspServer extends Service {
 	private final IBinder mBinder = new LocalBinder();
 	private boolean mRestart = false;
 	private final LinkedList<CallbackListener> mListeners = new LinkedList<CallbackListener>();
-
     /** Credentials for Basic Auth */
     private String mUsername;
     private String mPassword;
-	
+    private Session mServerSession;
 
-	public RtspServer() {
+
+	public RtspServer() throws IOException {
+		mServerSession = UriParser.parse("");
 	}
 
 	/** Be careful: those callbacks won't necessarily be called from the ui thread ! */
@@ -386,6 +388,7 @@ public class RtspServer extends Service {
 		// Each client has an associated session
 		private Session mSession;
 
+		private int rtpPort,rtcpPort;
 		public WorkerThread(final Socket client) throws IOException {
 			mInput = new BufferedReader(new InputStreamReader(client.getInputStream()));
 			mOutput = client.getOutputStream();
@@ -443,7 +446,7 @@ public class RtspServer extends Service {
 
 			// Streaming stops when client disconnects
 			boolean streaming = isStreaming();
-
+			removeClient();
 			mSession.syncStop();
 			mSession.release();
 			try {
@@ -481,12 +484,21 @@ public class RtspServer extends Service {
 			    /* ********************************* Method DESCRIBE ******************************** */
 			    /* ********************************************************************************** */
                 if (request.method.equalsIgnoreCase("DESCRIBE")) {
-
+//					if(mServerSession.isStreaming()){
+//						mServerSession.stop();
+//						mServerSession.release();
+//					}
                     // Parse the requested URI and configure the session
-                    mSession = handleRequest(request.uri, mClient);
-                    mSessions.put(mSession, null);
-                    mSession.syncConfigure();
-                    String requestContent = mSession.getSessionDescription();
+					if(mServerSession == null || !mServerSession.isStreaming()){
+						mServerSession = handleRequest(request.uri, mClient);
+					}
+					else {
+						mServerSession.setOrigin(mClient.getLocalAddress().getHostAddress());
+						mServerSession.setDestination(mClient.getInetAddress().getHostAddress());
+					}
+//                    mSession.syncConfigure();
+                    mServerSession.syncConfigure();
+                    String requestContent = mServerSession.getSessionDescription();
                     String requestAttributes =
                             "Content-Base: " + mClient.getLocalAddress().getHostAddress() + ":" + mClient.getLocalPort() + "/\r\n" +
                                     "Content-Type: application/sdp\r\n";
@@ -526,7 +538,7 @@ public class RtspServer extends Service {
 
                     trackId = Integer.parseInt(m.group(1));
 
-                    if (!mSession.trackExists(trackId)) {
+                    if (!mServerSession.trackExists(trackId)) {
                         response.status = Response.STATUS_NOT_FOUND;
                         return response;
                     }
@@ -535,29 +547,33 @@ public class RtspServer extends Service {
                     m = p.matcher(request.headers.get("transport"));
 
                     if (!m.find()) {
-                        int[] ports = mSession.getTrack(trackId).getDestinationPorts();
-                        p1 = ports[0];
-                        p2 = ports[1];
+                        int[] ports = mServerSession.getTrack(trackId).getDestinationPorts();
+                        rtpPort = ports[0];
+                        rtcpPort = ports[1];
                     } else {
-                        p1 = Integer.parseInt(m.group(1));
-                        p2 = Integer.parseInt(m.group(2));
+                        rtpPort = Integer.parseInt(m.group(1));
+                        rtcpPort = Integer.parseInt(m.group(2));
                     }
 
-                    ssrc = mSession.getTrack(trackId).getSSRC();
-                    src = mSession.getTrack(trackId).getLocalPorts();
-                    destination = mSession.getDestination();
-
-                    mSession.getTrack(trackId).setDestinationPorts(p1, p2);
+                    ssrc = mServerSession.getTrack(trackId).getSSRC();
+                    src = mServerSession.getTrack(trackId).getLocalPorts();
+                    destination = mServerSession.getDestination();
+					mServerSession.getTrack(trackId).setDestinationPorts(rtpPort, rtcpPort);
 
                     boolean streaming = isStreaming();
-                    mSession.syncStart(trackId);
+                    if(!mServerSession.isStreaming()){
+						mServerSession.syncStart(trackId);
+					}
+					else {
+						((MediaStream)mServerSession.getTrack(trackId)).getPacketizer().setDestination(InetAddress.getByName(destination), rtpPort, rtcpPort);
+					}
                     if (!streaming && isStreaming()) {
                         postMessage(MESSAGE_STREAMING_STARTED);
                     }
 
                     response.attributes = "Transport: RTP/AVP/UDP;" + (InetAddress.getByName(destination).isMulticastAddress() ? "multicast" : "unicast") +
-                            ";destination=" + mSession.getDestination() +
-                            ";client_port=" + p1 + "-" + p2 +
+                            ";destination=" + mServerSession.getDestination() +
+                            ";client_port=" + rtpPort + "-" + rtcpPort +
                             ";server_port=" + src[0] + "-" + src[1] +
                             ";ssrc=" + Integer.toHexString(ssrc) +
                             ";mode=play\r\n" +
@@ -575,9 +591,9 @@ public class RtspServer extends Service {
                 /* ********************************************************************************** */
                 else if (request.method.equalsIgnoreCase("PLAY")) {
                     String requestAttributes = "RTP-Info: ";
-                    if (mSession.trackExists(0))
+                    if (mServerSession.trackExists(0))
                         requestAttributes += "url=rtsp://" + mClient.getLocalAddress().getHostAddress() + ":" + mClient.getLocalPort() + "/trackID=" + 0 + ";seq=0,";
-                    if (mSession.trackExists(1))
+                    if (mServerSession.trackExists(1))
                         requestAttributes += "url=rtsp://" + mClient.getLocalAddress().getHostAddress() + ":" + mClient.getLocalPort() + "/trackID=" + 1 + ";seq=0,";
                     requestAttributes = requestAttributes.substring(0, requestAttributes.length() - 1) + "\r\nSession: 1185d20035702ca\r\n";
 
@@ -636,6 +652,20 @@ public class RtspServer extends Service {
 
             return false;
         }
+        public synchronized void  removeClient(){
+        	RtpSocket.clientInfos.removeIf(clientInfo -> {
+				try {
+					return clientInfo.equals(new ClientInfo(mClient.getInetAddress(), rtpPort, rtcpPort));
+				} catch (UnknownHostException e) {
+					e.printStackTrace();
+					return false;
+				}
+			});
+        	if(RtpSocket.clientInfos.size() == 0){
+        		mServerSession.stop();
+        		mServerSession.release();
+			}
+		}
 	}
 
 	static class Request {
@@ -665,6 +695,7 @@ public class RtspServer extends Service {
 
 			// Parsing headers of the request
 			while ( (line = input.readLine()) != null && line.length()>3 ) {
+				Log.d(TAG,line);
 				matcher = rexegHeader.matcher(line);
 				matcher.find();
 				request.headers.put(matcher.group(1).toLowerCase(Locale.US),matcher.group(2));

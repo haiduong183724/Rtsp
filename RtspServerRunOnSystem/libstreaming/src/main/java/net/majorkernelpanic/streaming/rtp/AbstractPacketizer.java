@@ -39,11 +39,11 @@ abstract public class AbstractPacketizer {
 	
 	// Maximum size of RTP packets
 	protected final static int MAXPACKETSIZE = RtpSocket.MTU-28;
-
 	protected RtpSocket socket = null;
+	protected RtpSocket[] sockets = null;
 	protected InputStream is = null;
 	protected byte[] buffer;
-	
+	protected int numClient = 0;
 	protected long ts = 0;
 
 	public AbstractPacketizer() {
@@ -80,9 +80,8 @@ abstract public class AbstractPacketizer {
 	 * @param rtcpPort Destination port that will be used for RTCP
 	 */
 	public void setDestination(InetAddress dest, int rtpPort, int rtcpPort) {
-		socket.setDestination(dest, rtpPort, rtcpPort);		
+		socket.setDestination(dest, rtpPort, rtcpPort);
 	}
-
 	/** Starts the packetizer. */
 	public abstract void start();
 
@@ -90,8 +89,9 @@ abstract public class AbstractPacketizer {
 	public abstract void stop();
 
 	/** Updates data for RTCP SR and sends the packet. */
-	protected void send(int length) throws IOException {
+	protected void send(int length) throws IOException, InterruptedException {
 		socket.commitBuffer(length);
+
 	}
 
 	/** For debugging purposes. */

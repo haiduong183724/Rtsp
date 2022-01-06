@@ -51,7 +51,11 @@ public class RtspService extends Service implements RtspServer.CallbackListener 
                 .setContentIntent(pendingIntent)
                 .build();
         startForeground(1, notification);
-        startRtspServer();
+        try {
+            startRtspServer();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         //do heavy work on a background thread
         //stopSelf();
         return START_STICKY;
@@ -78,7 +82,7 @@ public class RtspService extends Service implements RtspServer.CallbackListener 
         }
     }
 
-    private void startRtspServer(){
+    private void startRtspServer() throws IOException {
         rtspServer = new RtspServer();
         rtspServer.addCallbackListener(this);
         rtspServer.start();

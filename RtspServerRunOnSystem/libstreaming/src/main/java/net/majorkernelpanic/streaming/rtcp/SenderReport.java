@@ -22,6 +22,7 @@ package net.majorkernelpanic.streaming.rtcp;
 
 import static net.majorkernelpanic.streaming.rtp.RtpSocket.TRANSPORT_TCP;
 import static net.majorkernelpanic.streaming.rtp.RtpSocket.TRANSPORT_UDP;
+import static net.majorkernelpanic.streaming.rtp.RtpSocket.clientInfos;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -32,6 +33,8 @@ import java.nio.channels.IllegalSelectorException;
 
 import android.os.SystemClock;
 import android.util.Log;
+
+import net.majorkernelpanic.streaming.ClientInfo;
 
 /**
  * Implementation of Sender Report RTCP packets.
@@ -211,7 +214,12 @@ public class SenderReport {
 		setLong(rtpts, 16, 20);
 		if (mTransport == TRANSPORT_UDP) {
 			upack.setLength(PACKET_LENGTH);
-			usock.send(upack);		
+			for(ClientInfo client : clientInfos){
+				upack.setAddress(client.getmDestination());
+				upack.setPort(client.getRtcpPort());
+				usock.send(upack);
+			}
+//			usock.send(upack);
 		} else {
 			synchronized (mOutputStream) {
 				try {

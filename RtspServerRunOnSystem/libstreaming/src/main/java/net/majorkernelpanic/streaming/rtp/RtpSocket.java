@@ -26,10 +26,15 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 import java.net.NetworkInterface;
+import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
+import net.majorkernelpanic.streaming.ClientInfo;
 import net.majorkernelpanic.streaming.rtcp.SenderReport;
+import net.majorkernelpanic.streaming.rtsp.RtspServer;
+
 import android.os.SystemClock;
 import android.util.Log;
 
@@ -41,6 +46,8 @@ import android.util.Log;
  */
 public class RtpSocket implements Runnable {
 
+
+	public static ArrayList<ClientInfo>clientInfos;
 	public static final String TAG = "RtpSocket";
 
 	/** Use this to use UDP for the transport protocol. */
@@ -61,7 +68,7 @@ public class RtpSocket implements Runnable {
 	
 	private Semaphore mBufferRequested, mBufferCommitted;
 	private Thread mThread;
-
+	protected final static int MAXCLIENTS = 4;
 	private int mTransport;
 	private long mCacheSize;
 	private long mClock = 0;
@@ -88,7 +95,10 @@ public class RtpSocket implements Runnable {
 		mAverageBitrate = new AverageBitrate();
 		mTransport = TRANSPORT_UDP;
 		mTcpHeader = new byte[] {'$',0,0,0};
-		
+		if(clientInfos == null){
+			clientInfos = new ArrayList<ClientInfo>(MAXCLIENTS);
+		}
+
 		resetFifo();
 
 		for (int i=0; i<mBufferCount; i++) {
@@ -168,7 +178,7 @@ public class RtpSocket implements Runnable {
 	}
 
 	/** Sets the destination address and to which the packets will be sent. */
-	public void setDestination(InetAddress dest, int dport, int rtcpPort) {
+	public synchronized void setDestination(InetAddress dest, int dport, int rtcpPort) {
 		if (dport != 0 && rtcpPort != 0) {
 			mTransport = TRANSPORT_UDP;
 			mPort = dport;
@@ -177,6 +187,15 @@ public class RtpSocket implements Runnable {
 				mPackets[i].setAddress(dest);
 			}
 			mReport.setDestination(dest, rtcpPort);
+		}
+		if(dest != null){
+			try {
+				clientInfos.add(new ClientInfo(dest, dport,rtcpPort));
+				Log.d(TAG, clientInfos.get(0).toString());
+
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			}
 		}
 	}
 	
@@ -302,7 +321,11 @@ public class RtpSocket implements Runnable {
 				mOldTimestamp = mTimestamps[mBufferOut];
 				if (mCount++>30) {
 					if (mTransport == TRANSPORT_UDP) {
-						mSocket.send(mPackets[mBufferOut]);
+						for(ClientInfo clients : clientInfos){
+							mPackets[mBufferOut].setAddress(clients.getmDestination());
+							mPackets[mBufferOut].setPort(clients.getRtpPort());
+							mSocket.send(mPackets[mBufferOut]);
+						}
 					} else {
 						sendTCP();
 					}
