@@ -105,17 +105,19 @@ public class NV21Convertor {
 		return mPanesReversed;
 	}
 	public void convert(byte[] data, ByteBuffer buffer){
+//		long now = System.nanoTime()*1000;
 		byte[] result = convert(data);
+//		Log.d("TIME", ""+(System.nanoTime()*1000 - now));
 		int min = buffer.capacity() < data.length?buffer.capacity() : data.length;
 		buffer.put(result, 0, min);
 	}
 	public byte[] convert(byte[] data) {
-		// Convert nv21 to nv12??
+
 		// A buffer large enough for every case
 		if (mBuffer==null || mBuffer.length != 3*mSliceHeight*mStride/2+mYPadding) {
 			mBuffer = new byte[3*mSliceHeight*mStride/2+mYPadding];
 		}
-		
+
 		if (!mPlanar) {
 			if (mSliceHeight==mHeight && mStride==mWidth) {
 				// Swaps U and V
@@ -123,7 +125,7 @@ public class NV21Convertor {
 					for (int i = mSize; i < mSize+mSize/2; i += 2) {
 						mBuffer[0] = data[i+1];
 						data[i+1] = data[i];
-						data[i] = mBuffer[0]; 
+						data[i] = mBuffer[0];
 					}
 				}
 				if (mYPadding>0) {
@@ -157,6 +159,7 @@ public class NV21Convertor {
 				return data;
 			}
 		}
+
 		return data;
 	}
 	interface ConvertCallback{

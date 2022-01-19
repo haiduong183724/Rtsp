@@ -75,7 +75,7 @@ public class MediaCodecInputStream extends InputStream {
 					mIndex = mMediaCodec.dequeueOutputBuffer(mBufferInfo, 500000);
 					if (mIndex>=0 ){
 						//Log.d(TAG,"Index: "+mIndex+" Time: "+mBufferInfo.presentationTimeUs+" size: "+mBufferInfo.size);
-						mBuffer = mBuffers[mIndex];
+						mBuffer = mMediaCodec.getOutputBuffer(mIndex);
 						mBuffer.position(0);
 						break;
 					} else if (mIndex == MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED) {
@@ -85,6 +85,7 @@ public class MediaCodecInputStream extends InputStream {
 						Log.i(TAG,mMediaFormat.toString());
 					} else if (mIndex == MediaCodec.INFO_TRY_AGAIN_LATER) {
 						Log.v(TAG,"No buffer available...");
+						mMediaCodec.reset();
 						//return 0;
 					} else {
 						Log.e(TAG,"Message: "+mIndex);
@@ -103,10 +104,9 @@ public class MediaCodecInputStream extends InputStream {
 			}
 
 		}
-		catch (RuntimeException e) {
+		catch (IllegalStateException e) {
 			e.printStackTrace();
 		}
-
 
 		return min;
 	}

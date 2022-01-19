@@ -74,7 +74,7 @@ public class RtspServer extends Service {
 	public static String SERVER_NAME = "MajorKernelPanic RTSP Server";
 
 	/** Port used by default. */
-	public static final int DEFAULT_RTSP_PORT = 5555;
+	public static final int DEFAULT_RTSP_PORT = 8086;
 
 	/** Port already in use. */
 	public final static int ERROR_BIND_FAILED = 0x00;
@@ -449,14 +449,6 @@ public class RtspServer extends Service {
 			removeClient();
 			mSession.syncStop();
 			mSession.release();
-			try {
-				FileWriter fw = new FileWriter("/sdcard/Download/clientLog.txt");
-				Date currentTime = Calendar.getInstance().getTime();
-				fw.write(currentTime.toString());
-				fw.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
 
 			if (streaming && !isStreaming()) {
 				postMessage(MESSAGE_STREAMING_STOPPED);
@@ -662,7 +654,7 @@ public class RtspServer extends Service {
 				}
 			});
         	if(RtpSocket.clientInfos.size() == 0){
-        		mServerSession.stop();
+        		mServerSession.syncStop();
         		mServerSession.release();
 			}
 		}

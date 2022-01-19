@@ -192,7 +192,7 @@ public class H264Packetizer extends AbstractPacketizer implements Runnable {
 			socket.markNextPacket();
 			socket.updateTimestamp(ts);
 			System.arraycopy(stapa, 0, buffer, rtphl, stapa.length);
-			send(rtphl+stapa.length, true);
+			send(rtphl+stapa.length);
 		}
 
 		//Log.d(TAG,"- Nal unit length: " + naluLength + " delay: "+delay/1000000+" type: "+type);
@@ -221,7 +221,7 @@ public class H264Packetizer extends AbstractPacketizer implements Runnable {
 			socket.updateTimestamp(ts);
 			socket.markNextPacket();
 
-			send(naluLength+rtphl, true);
+			send(naluLength+rtphl);
 			//Log.d(TAG,"----- Single NAL unit - len:"+len+" delay: "+delay);
 		}
 		// Large NAL unit => Split nal unit 
@@ -246,23 +246,12 @@ public class H264Packetizer extends AbstractPacketizer implements Runnable {
 					buffer[rtphl+1] += 0x40;
 					socket.markNextPacket();
 				}
-				send(len+rtphl+2,sum >= naluLength );
+				send(len+rtphl+2);
 				// Switch start bit
 				header[1] = (byte) (header[1] & 0x7F); 
 				//Log.d(TAG,"----- FU-A unit, sum:"+sum);
 			}
 		}
-	}
-	protected void send(int length, boolean isEnd) throws IOException, InterruptedException {
-		for(int i = 0; i < numClient; i++ ){
-			sockets[i].updateTimestamp(ts);
-			if(isEnd){
-				sockets[i].markNextPacket();
-			}
-			byte[] nBuffer = sockets[i].requestBuffer();
-			System.arraycopy(buffer, 0, nBuffer, 0, buffer.length);
-		}
-		super.send(length);
 	}
 
 	private int fill(byte[] buffer, int offset, int length) throws IOException {

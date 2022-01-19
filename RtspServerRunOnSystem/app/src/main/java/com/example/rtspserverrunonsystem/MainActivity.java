@@ -31,7 +31,7 @@ public class MainActivity extends AppCompatActivity {
 
     int framerate = 20;
 
-    int biterate = 5500*1000;
+    int biterate = 1500*1000;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);

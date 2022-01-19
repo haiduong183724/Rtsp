@@ -500,7 +500,7 @@ public abstract class VideoStream extends MediaStream {
 		MediaFormat mediaFormat = MediaFormat.createVideoFormat("video/avc", mQuality.resX, mQuality.resY);
 		mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, mQuality.bitrate);
 		mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, mQuality.framerate);
-		mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT,debugger.getEncoderColorFormat());
+//		mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT,debugger.getEncoderColorFormat());
 		mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT,MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible);
 		mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
 		mMediaCodec.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
@@ -512,31 +512,36 @@ public abstract class VideoStream extends MediaStream {
 			public void onPreviewFrame(byte[] data, Camera camera) {
 				oldnow = now;
 				now = System.nanoTime()/1000;
-				if (i++>3) {
-					i = 0;
-//					Log.d(TAG,"Measured: "+1000000L/(now-oldnow)+" fps.");
-				}
+//				if (i++>3) {
+//					i = 0;
+////					Log.d(TAG,"Measured: "+1000000L/(now-oldnow)+" fps.");
+//				}
 				try {
-						int bufferIndex = mMediaCodec.dequeueInputBuffer(500000);
-						if (bufferIndex >= 0) {
-							inputBuffers[bufferIndex].clear();
-							if (data == null)
-								Log.e(TAG, "Symptom of the \"Callback buffer was to small\" problem...");
-							else {
-								convertor.convert(data, inputBuffers[bufferIndex]);
+					int bufferIndex = mMediaCodec.dequeueInputBuffer(3000000);
+					if (bufferIndex >= 0) {
+						ByteBuffer buffer = mMediaCodec.getInputBuffer(bufferIndex);
+//						inputBuffers[bufferIndex].clear();
+						buffer.clear();
+						if (data == null)
+							Log.e(TAG, "Symptom of the \"Callback buffer was to small\" problem...");
+						else {
+//							convertor.convert(data, inputBuffers[bufferIndex]);
+							convertor.convert(data, buffer);
 //								inputBuffers[bufferIndex].put(data);
-							}
-							mMediaCodec.queueInputBuffer(bufferIndex, 0, inputBuffers[bufferIndex].position(), now, 0);
-						} else {
-							Log.e(TAG, "No buffer available !" + bufferIndex);
 						}
+//						mMediaCodec.queueInputBuffer(bufferIndex, 0, inputBuffers[bufferIndex].position(), now, 0);
+						mMediaCodec.queueInputBuffer(bufferIndex, 0, buffer.position(), now, 0);
+					} else {
+						Log.e(TAG, "No buffer available !" + bufferIndex);
+//						mMediaCodec.reset();
+					}
 					mCamera.addCallbackBuffer(data);
 				}
 				catch (NullPointerException exception){
 					Log.e(TAG, exception.getMessage());
 				}
 				catch (IllegalStateException exception){
-					Log.e(TAG, "illegal exception");
+					exception.printStackTrace();
 				}
 			}
 		};
