@@ -19,6 +19,7 @@ public class ClientInfo {
 
     private InetAddress mDestination;
     private int rtpPort, rtcpPort;
+    public boolean isStart = false;
     public ClientInfo(InetAddress des, int p1, int p2) throws UnknownHostException {
         mDestination =  des;
         rtcpPort = p2;

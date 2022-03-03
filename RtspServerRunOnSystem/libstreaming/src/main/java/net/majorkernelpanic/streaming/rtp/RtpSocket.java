@@ -190,9 +190,11 @@ public class RtpSocket implements Runnable {
 		}
 		if(dest != null){
 			try {
-				clientInfos.add(new ClientInfo(dest, dport,rtcpPort));
+				ClientInfo client = new ClientInfo(dest, dport,rtcpPort);
+				if(!clientInfos.contains(client)) {
+					clientInfos.add(client);
+				}
 				Log.d(TAG, clientInfos.get(0).toString());
-
 			} catch (UnknownHostException e) {
 				e.printStackTrace();
 			}
@@ -319,12 +321,14 @@ public class RtpSocket implements Runnable {
 				}
 				mReport.update(mPackets[mBufferOut].getLength(), (mTimestamps[mBufferOut]/100L)*(mClock/1000L)/10000L);
 				mOldTimestamp = mTimestamps[mBufferOut];
-				if (mCount++>30) {
+				if (mCount++>0) {
 					if (mTransport == TRANSPORT_UDP) {
 						for(ClientInfo clients : clientInfos){
-							mPackets[mBufferOut].setAddress(clients.getmDestination());
-							mPackets[mBufferOut].setPort(clients.getRtpPort());
-							mSocket.send(mPackets[mBufferOut]);
+							if(clients.isStart) {
+								mPackets[mBufferOut].setAddress(clients.getmDestination());
+								mPackets[mBufferOut].setPort(clients.getRtpPort());
+								mSocket.send(mPackets[mBufferOut]);
+							}
 						}
 					} else {
 						sendTCP();

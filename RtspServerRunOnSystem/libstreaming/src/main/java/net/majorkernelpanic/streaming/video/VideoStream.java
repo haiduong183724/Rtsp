@@ -552,7 +552,6 @@ public abstract class VideoStream extends MediaStream {
 		// The packetizer encapsulates the bit stream in an RTP stream and send it over the network
 		mPacketizer.setInputStream(new MediaCodecInputStream(mMediaCodec));
 		mPacketizer.start();
-
 		mStreaming = true;
 	}
 
@@ -725,7 +724,7 @@ public abstract class VideoStream extends MediaStream {
 		}
 
 		Parameters parameters = mCamera.getParameters();
-//		mQuality = VideoQuality.determineClosestSupportedResolution(parameters, mQuality);
+		mQuality = VideoQuality.determineClosestSupportedResolution(parameters, mQuality);
 		int[] max = VideoQuality.determineMaximumSupportedFramerate(parameters);
 		double ratio = (double)mQuality.resX/(double)mQuality.resY;
 		mSurfaceView.requestAspectRatio(ratio);

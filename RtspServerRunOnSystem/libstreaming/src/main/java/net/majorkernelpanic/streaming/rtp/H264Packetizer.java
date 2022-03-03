@@ -25,6 +25,8 @@ import java.io.IOException;
 import android.annotation.SuppressLint;
 import android.util.Log;
 
+import net.majorkernelpanic.streaming.ClientInfo;
+
 /**
  * 
  *   RFC 3984.
@@ -188,10 +190,14 @@ public class H264Packetizer extends AbstractPacketizer implements Runnable {
 		// We send two packets containing NALU type 7 (SPS) and 8 (PPS)
 		// Those should allow the H264 stream to be decoded even if no SDP was sent to the decoder.
 		if (type == 5 && sps != null && pps != null) {
+			for(ClientInfo clients : RtpSocket.clientInfos){
+				clients.isStart = true;
+			}
 			buffer = socket.requestBuffer();
 			socket.markNextPacket();
 			socket.updateTimestamp(ts);
 			System.arraycopy(stapa, 0, buffer, rtphl, stapa.length);
+			// Frame i so can send it to all client
 			send(rtphl+stapa.length);
 		}
 
@@ -199,7 +205,6 @@ public class H264Packetizer extends AbstractPacketizer implements Runnable {
 
 		// Small NAL unit => Single NAL unit 
 		if (naluLength<=MAXPACKETSIZE-rtphl-2) {
-
 			buffer = socket.requestBuffer();
 			buffer[rtphl] = header[4];
 			len = fill(buffer, rtphl+1,  naluLength-1);

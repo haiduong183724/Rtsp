@@ -161,9 +161,10 @@ public class RtspServer extends Service {
 	 * @param port The port
 	 */
 	public void setPort(int port) {
-		Editor editor = mSharedPreferences.edit();
+		/*Editor editor = mSharedPreferences.edit();
 		editor.putString(KEY_PORT, String.valueOf(port));
-		editor.commit();
+		editor.commit();*/
+		mPort = port;
 	}
 
     /**
@@ -206,6 +207,9 @@ public class RtspServer extends Service {
 				    if ( session != null ) {
 				    	if (session.isStreaming()) session.stop();
 				    } 
+				}
+				if(mServerSession != null){
+					mServerSession.stop();
 				}
 			} catch (Exception e) {
 			} finally {

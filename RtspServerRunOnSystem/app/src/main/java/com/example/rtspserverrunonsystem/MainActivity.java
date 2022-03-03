@@ -26,8 +26,8 @@ import java.security.Permission;
 public class MainActivity extends AppCompatActivity {
     ToggleButton btnStartService;
     SurfaceView mView;
-    int width = 1280;
-    int height = 720;
+    int width = 960;
+    int height = 540;
 
     int framerate = 20;
 
